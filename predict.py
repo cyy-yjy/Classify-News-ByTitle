@@ -1,8 +1,11 @@
 import os
 import torch
 import torch.nn as nn
+from werkzeug.wrappers import BaseResponse
 from pytorch_pretrained_bert import BertModel, BertTokenizer
+from flask import Flask, request, jsonify
 
+app = Flask(__name__)
 # 识别的类型
 key = {0: 'finance',
        1: 'realty',
@@ -72,22 +75,43 @@ config = Config()
 model = Model(config).to(config.device)
 model.load_state_dict(torch.load(config.save_path, map_location='cpu'))
 
-
 def prediction_model(text):
     """输入一句问话预测"""
-
     data = config.build_dataset(text)
     with torch.no_grad():
         outputs = model(data)
         num = torch.argmax(outputs)
     return key[int(num)]
-
+@app.route("/predict", methods=['POST'])
+def predict():
+    print(1)
+    response = {
+        "response": {
+            "isError": True,
+            "msg": "", }
+    }
+    try:
+        data = request.get_json()
+        text = data.get('text')
+        print("接收到post请求", text)
+        ans=prediction_model(text)
+        response['response']['isError'] =False
+        response['response']['data'] = ans
+    except Exception as e:
+        response['response']['msg'] = str(e)
+    return jsonify(response)
 
 if __name__ == '__main__':
+    print("已经进入main函数")
     print(prediction_model('锌价难续去年辉煌'))
+    app.run(
+        host='0.0.0.0',
+        port=6000,
+        debug=True
+    )
     # 用while循环不断输入句子，进行预测
-    while 1:
-        text = input('请输入句子：')
-        if text == 'exit':
-            break
-        print(prediction_model(text))
+    # while 1:
+    #     text = input('请输入句子：')
+    #     if text == 'exit':
+    #         break
+    #     print(prediction_model(text))
