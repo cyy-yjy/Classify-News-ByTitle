@@ -7,16 +7,16 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 # 识别的类型
-key = {0: 'finance',
-       1: 'realty',
-       2: 'stocks',
-       3: 'education',
-       4: 'science',
-       5: 'society',
-       6: 'politics',
-       7: 'sports',
-       8: 'game',
-       9: 'entertainment'
+key = {0: '经济',
+       1: '房地产',
+       2: '股票',
+       3: '教育',
+       4: '科学',
+       5: '社会',
+       6: '政治',
+       7: '体育',
+       8: '游戏',
+       9: '娱乐'
        }
 
 
@@ -80,8 +80,23 @@ def prediction_model(text):
     data = config.build_dataset(text)
     with torch.no_grad():
         outputs = model(data)
+        # 用softmax归一化
+        probabilities = torch.nn.functional.softmax(outputs, dim=1)
         num = torch.argmax(outputs)
-    return key[int(num)]
+        print("预测的类型是：", key[int(num)])
+        #尝试获得前三个的概率
+        top_k = 3
+        top_probabilities, top_indices = torch.topk(probabilities, top_k)
+        for i in range(top_k):
+            print("第", i + 1, "个预测的类型是：", key[int(top_indices[0][i])], "概率是：", top_probabilities[0][i].item())
+    #     用数组存储得到的k个类型和相应概率
+        ans = []
+        for i in range(top_k):
+            tmp={} #tmp是一个对象
+            tmp['type'] = key[int(top_indices[0][i])]
+            tmp['probability'] = top_probabilities[0][i].item()*100
+            ans.append(tmp)
+        return ans
 @app.route("/predict", methods=['POST'])
 def predict():
     print(1)
@@ -103,13 +118,13 @@ def predict():
 
 if __name__ == '__main__':
     print("已经进入main函数")
-    print(prediction_model('锌价难续去年辉煌'))
+    # print(prediction_model('锌价难续去年辉煌'))
     app.run(
         host='0.0.0.0',
         port=6000,
         debug=True
     )
-    # 用while循环不断输入句子，进行预测
+    #用while循环不断输入句子，进行预测
     # while 1:
     #     text = input('请输入句子：')
     #     if text == 'exit':
