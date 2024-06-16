@@ -34,36 +34,37 @@ def train(config, model, train_iter, dev_iter, test_iter):
     param_optimizer = list(model.named_parameters())#把模型所有参数存进param_optimizer
     no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']#偏置参数和归一化层的参数不进行权重衰减
     optimizer_grouped_parameters = [
-
         {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
         {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}]
     # optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+    # 设置bert优化器
     optimizer = BertAdam(optimizer_grouped_parameters,
-                         lr=config.learning_rate,
-                         warmup=0.05,
-                         t_total=len(train_iter) * config.num_epochs)
+                         lr=config.learning_rate,#学习率
+                         warmup=0.05,#学习率线性变化的比例
+                         t_total=len(train_iter) * config.num_epochs)#总的训练步骤数。
+    # len(train_iter) 表示每个 epoch 中有多少个训练步骤，而 config.num_epochs 表示总的训练 epoch 数
     total_batch = 0  # 记录进行到多少batch
     dev_best_loss = float('inf')
-    last_improve = 0  # 记录上次验证集loss下降的batch数
+    last_improve = 0  # 记录上次验证集loss下降的batch编号
     flag = False  # 记录是否很久没有效果提升
     model.train()
     for epoch in range(config.num_epochs):
         print('Epoch [{}/{}]'.format(epoch + 1, config.num_epochs))
         for i, (trains, labels) in enumerate(train_iter):
             outputs = model(trains)
-            model.zero_grad()
-            loss = F.cross_entropy(outputs, labels)
-            loss.backward()
-            optimizer.step()
+            model.zero_grad()#梯度清零
+            loss = F.cross_entropy(outputs, labels)#计算交叉熵损失
+            loss.backward()#反向传播
+            optimizer.step()#优化器更新参数
             if total_batch % 100 == 0:
                 # 每多少轮输出在训练集和验证集上的效果
-                true = labels.data.cpu()
-                predic = torch.max(outputs.data, 1)[1].cpu()
+                true = labels.data.cpu()#真实类别
+                predic = torch.max(outputs.data, 1)[1].cpu()#预测类别（所有类别中概率最大的）
                 train_acc = metrics.accuracy_score(true, predic)
                 dev_acc, dev_loss = evaluate(config, model, dev_iter)
                 if dev_loss < dev_best_loss:
                     dev_best_loss = dev_loss
-                    torch.save(model.state_dict(), config.save_path)
+                    torch.save(model.state_dict(), config.save_path)#保存
                     improve = '*'
                     last_improve = total_batch
                 else:
@@ -80,13 +81,13 @@ def train(config, model, train_iter, dev_iter, test_iter):
                 break
         if flag:
             break
-    test(config, model, test_iter)
+    test(config, model, test_iter)#执行测试
 
 
 def test(config, model, test_iter):
     # test
-    model.load_state_dict(torch.load(config.save_path))
-    model.eval()
+    model.load_state_dict(torch.load(config.save_path))#从文件中加载模型
+    model.eval()#评估
     start_time = time.time()
     test_acc, test_loss, test_report, test_confusion = evaluate(config, model, test_iter, test=True)
     msg = 'Test Loss: {0:>5.2},  Test Acc: {1:>6.2%}'
@@ -104,7 +105,7 @@ def evaluate(config, model, data_iter, test=False):
     loss_total = 0
     predict_all = np.array([], dtype=int)
     labels_all = np.array([], dtype=int)
-    with torch.no_grad():
+    with torch.no_grad():#不进行梯度计算
         for texts, labels in data_iter:
             outputs = model(texts)
             loss = F.cross_entropy(outputs, labels)
@@ -117,6 +118,6 @@ def evaluate(config, model, data_iter, test=False):
     acc = metrics.accuracy_score(labels_all, predict_all)
     if test:
         report = metrics.classification_report(labels_all, predict_all, target_names=config.class_list, digits=4)
-        confusion = metrics.confusion_matrix(labels_all, predict_all)
+        confusion = metrics.confusion_matrix(labels_all, predict_all)#生成混淆矩阵
         return acc, loss_total / len(data_iter), report, confusion
     return acc, loss_total / len(data_iter)

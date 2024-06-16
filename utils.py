@@ -40,7 +40,7 @@ def build_dataset(config):
 
 
 class DatasetIterater(object):
-    def __init__(self, batches, batch_size, device):
+    def __init__(self, batches, batch_size, device):#初始化dataset
         self.batch_size = batch_size
         self.batches = batches
         self.n_batches = len(batches) // batch_size
@@ -51,7 +51,7 @@ class DatasetIterater(object):
         self.device = device
 
     def _to_tensor(self, datas):
-        x = torch.LongTensor([_[0] for _ in datas]).to(self.device)
+        x = torch.LongTensor([_[0] for _ in datas]).to(self.device)#将数据转换为tensor
         y = torch.LongTensor([_[1] for _ in datas]).to(self.device)
 
         # pad前的长度(超过pad_size的设为pad_size)

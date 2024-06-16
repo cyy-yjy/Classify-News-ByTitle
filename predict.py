@@ -73,12 +73,12 @@ class Model(nn.Module):
 
 config = Config()
 model = Model(config).to(config.device)
-model.load_state_dict(torch.load(config.save_path, map_location='cpu'))
+model.load_state_dict(torch.load(config.save_path, map_location='cpu'))#加载之前保存的内容
 
 def prediction_model(text):
     """输入一句问话预测"""
     data = config.build_dataset(text)
-    with torch.no_grad():
+    with torch.no_grad():#不使用梯度
         outputs = model(data)
         # 用softmax归一化
         probabilities = torch.nn.functional.softmax(outputs, dim=1)
